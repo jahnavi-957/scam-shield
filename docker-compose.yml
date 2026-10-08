@@ -1,0 +1,64 @@
+name: scamshield
+
+# Local development stack for M1. Mirrors the production topology
+# (Postgres + FastAPI + React in containers) so later milestones deploy
+# the same artifacts to EC2.
+#
+# `db` is intentionally not reachable from outside the compose network on
+# port 5432; we expose it on 127.0.0.1:5433 only for host-side tooling
+# (psql, Alembic from the host, etc.).
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: scamshield
+      # Dev-only default for localhost. Never reused on AWS — real credentials
+      # are injected from SSM at deployment time (M4).
+      POSTGRES_PASSWORD: scamshield_dev
+      POSTGRES_DB: scamshield
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scamshield -d scamshield"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      # Service name `db` resolves inside the compose network.
+      DATABASE_URL: postgresql+psycopg://scamshield:scamshield_dev@db:5432/scamshield
+      CORS_ORIGINS: http://localhost:5173
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      # Named volume keeps container-installed node_modules alive across the
+      # host bind mount (the Windows host has no node_modules to share).
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  frontend_node_modules:
