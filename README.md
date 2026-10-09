@@ -207,8 +207,10 @@ Designed to run within AWS Free Tier / new-account credits. Estimated monthly co
 
 ## Team
 
-[Add team member names/roles here]
+- [Jahnavi Shah] – [10700]
+- [Tanish Ingole] – [10661]
+- [Shreysh Nair] – [10680]
 
 ## License
 
-[Add license here]
+MIT
