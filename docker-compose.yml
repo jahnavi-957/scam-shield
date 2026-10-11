@@ -1,20 +1,23 @@
 name: scamshield
 
-# Local development stack for M1. Mirrors the production topology
-# (Postgres + FastAPI + React in containers) so later milestones deploy
-# the same artifacts to EC2.
+# Local development stack for M1/M2. Mirrors the production
+# topology (Postgres + FastAPI + React in containers) so the
+# same artifacts deploy to EC2 later.
 #
-# `db` is intentionally not reachable from outside the compose network on
-# port 5432; we expose it on 127.0.0.1:5433 only for host-side tooling
-# (psql, Alembic from the host, etc.).
+# `db` is intentionally not reachable from outside the compose
+# network on port 5432; we expose it on 127.0.0.1:5433 only
+# for host-side tooling (psql, pytest, Alembic from the host).
 
 services:
   db:
+    # pgvector image: the analysis schema stores embeddings
+    # as a `vector` column (extension enabled by Alembic
+    # migration 0001), so local dev matches RDS exactly.
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: scamshield
-      # Dev-only default for localhost. Never reused on AWS — real credentials
-      # are injected from SSM at deployment time (M4).
+      # Dev-only default for localhost. Never reused on AWS —
+      # real credentials are injected from SSM at deploy time.
       POSTGRES_PASSWORD: scamshield_dev
       POSTGRES_DB: scamshield
     ports:
@@ -28,14 +31,29 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    # Build context is the repo root: the image needs both
+    # backend/ (the API) and ml/scamshield_ml (the AI module).
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    # Dev mode: live-reload instead of gunicorn.
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       # Service name `db` resolves inside the compose network.
       DATABASE_URL: postgresql+psycopg://scamshield:scamshield_dev@db:5432/scamshield
       CORS_ORIGINS: http://localhost:5173
+      ENVIRONMENT: local
+      SSM_ENABLED: "false"
+      # In dev the host's trained model is mounted below; the
+      # classifier picks it up through SCAM_MODEL_DIR.
+      SCAM_MODEL_DIR: /var/lib/scamshield/model
     volumes:
       - ./backend:/app
+      # AI module importable via PYTHONPATH (/opt/ml).
+      - ./ml:/opt/ml:ro
+      # Host's fine-tuned weights, so dev classifies with the
+      # real DistilBERT model instead of the rule fallback.
+      - ./ml/model:/var/lib/scamshield/model:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -51,8 +69,8 @@ services:
     build: ./frontend
     volumes:
       - ./frontend:/app
-      # Named volume keeps container-installed node_modules alive across the
-      # host bind mount (the Windows host has no node_modules to share).
+      # Named volume keeps container-installed node_modules alive across
+      # the host bind mount (the Windows host has no node_modules to share).
       - frontend_node_modules:/app/node_modules
     ports:
       - "5173:5173"

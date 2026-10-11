@@ -42,7 +42,7 @@ def test_health_reports_degraded_when_database_down():
 
 
 @pytest.mark.integration
-def test_health_connected_against_real_database():
+def test_health_connected_against_real_database(db_engine):
     """Requires the compose Postgres to be up (docker compose up -d db)."""
     response = client.get("/health")
     assert response.status_code == 200

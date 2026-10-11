@@ -2,8 +2,8 @@
 
 AI-powered fraud detection platform for SMS, UPI, WhatsApp, and phishing scams built around a shared **scam intelligence graph**.
 
-> **Current Status: Milestone M1 (Local Skeleton) Verified.**  
-> A complete local development environment runs via Docker Compose: FastAPI backend, React frontend, and PostgreSQL with pgvector, with database migrations applied and verified test suite passing. No AWS resources created yet.
+> **Current Status: M1 skeleton + ML pipeline + Backend API — complete and verified locally.**
+> The `ml/` package ships a fine-tuned DistilBERT classifier and MiniLM embedder (100 tests passing). The FastAPI backend implements the full analysis API — text and screenshot (OCR) ingestion, pgvector near-duplicate detection, entity tracking with SNS alert thresholds, S3 presigned uploads, and SSM-backed configuration — with Alembic migrations and a 30-test suite. No AWS resources created yet.
 
 ---
 
@@ -54,11 +54,11 @@ Scam Shield solves this by creating a centralized, real-time **scam intelligence
 
 ```
 scam-shield/
-├── backend/          FastAPI application (api, core config, db, schemas) + Alembic migrations
+├── backend/          FastAPI analysis API (SSM, S3, SNS, OCR, pgvector) + Alembic migrations
 ├── frontend/         React + Vite + TypeScript single-page app
 ├── scamshield_core/  Shared analysis pipeline (populated in M2)
 ├── worker/           Async screenshot worker (populated in M6)
-├── ml/               Dataset, training, evaluation (populated in M2)
+├── ml/               Trained models (DistilBERT + MiniLM) and the scamshield_ml package
 ├── infra/            Terraform for AWS (populated in M3)
 ├── docs/             Requirements, architecture, threat model, cost, ADRs, status
 ├── scripts/          Developer helper scripts
