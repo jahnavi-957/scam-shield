@@ -1,0 +1,52 @@
+# ---- Secrets / environment ----
+# Local-only configuration. Never commit real credentials.
+.env
+.env.*
+!.env.example
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+*.local
+
+# ---- Docker ----
+.pgdata/
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# ---- Generated / runtime data ----
+logs/
+
+# ---- Tool scaffolding (local-only, never push to teammates) ----
+.agent/
+.agents/
+.gemini/
+.gsd/
+adapters/
+model_capabilities.yaml
+GSD-STYLE.md
+PROJECT_RULES.md
+docs/model-selection-playbook.md
+docs/runbook.md
+docs/token-optimization-guide.md
+scripts/search_repo.*
+scripts/setup_search.*
+scripts/validate-*.ps1
+scripts/validate-*.sh
+\# SCAM SHIELD — MASTER PROJECT CONTEXT.md
