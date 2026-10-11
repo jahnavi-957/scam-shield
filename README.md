@@ -99,9 +99,13 @@ scamshield/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── ml/
-│   ├── train_classifier.ipynb   # DistilBERT fine-tuning notebook
-│   ├── dataset/                 # labeled scam/non-scam data
-│   └── evaluation.md            # metrics, confusion matrix, writeup
+│   ├── scamshield_ml/       # importable ML package (extraction, classifier, embeddings, pipeline)
+│   ├── prepare_dataset.py   # assembles + cleans + splits the dataset
+│   ├── train_classifier.py  # DistilBERT fine-tuning (HF Trainer)
+│   ├── dataset/             # labeled data (handwritten seeds + Kaggle datasets + generated splits)
+│   ├── tests/               # pytest suite
+│   ├── model/               # fine-tuned weights (generated)
+│   └── evaluation.md        # metrics, confusion matrix, writeup (generated)
 ├── ingestion/
 │   └── email_poller/            # Lambda function for scheduled email fetch
 ├── frontend/

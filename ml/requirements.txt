@@ -1,0 +1,13 @@
+# Core (inference + package runtime)
+numpy>=1.24
+pydantic>=2.5
+torch>=2.0
+transformers>=4.38,<5
+sentence-transformers>=2.7
+
+# Testing
+pytest>=7.4
+
+# Optional conveniences (training UX only; scripts degrade gracefully)
+matplotlib>=3.7      # loss-curve PNGs
+datasets>=2.16       # auto-download UCI SMS Spam Collection
