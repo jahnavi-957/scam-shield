@@ -1,6 +1,6 @@
 # Scam Shield — Implementation Status
 
-*Last updated: 2026-10-11 · Status snapshot verified against the live repository and the running local stack.*
+*Last updated: 2026-10-11 · Repo-side state verified against the git history and working tree. ML external work noted, not merged.*
 
 ## Overall Status
 
@@ -12,7 +12,7 @@ The project is at **M1 — Local Skeleton** (plus the M0 foundation it needs). A
 |---|---|---|
 | M0 | Foundation (docs, repo, cost plan, threat model) | **Done** |
 | M1 | Local skeleton (React + FastAPI + PostgreSQL + Compose + schema/migrations) | **Done, verified** |
-| M2 | Detection engine (`scamshield_core`, rules, ML, similarity, scoring) | Not started |
+| M2 | Detection engine (`scamshield_core`, rules, ML, similarity, scoring) | **Partial — ML in progress externally** (see §6) |
 | M3 | AWS networking (VPC/subnets/route tables/IGW/SGs) | Not started |
 | M4 | RDS + IAM + SSM Parameter Store | Not started |
 | M5 | EC2 + Docker + ALB + HTTPS | Not started |
@@ -75,7 +75,9 @@ The project is at **M1 — Local Skeleton** (plus the M0 foundation it needs). A
 **Status:** Not started. Placeholder `README.md` only. Terraform (VPC → RDS → EC2/ALB → S3/SQS …) is generated from **M3** onward — never before the local app is proven to work.
 
 ### 6. Machine Learning (`ml/`)
-**Status:** Not started. Placeholder directory. Datasets, training, evaluation of the TF-IDF + Logistic Regression baseline arrive in **M2**.
+**Status:** In progress, externally — not yet merged into this repo.
+- A teammate is developing the ML baseline separately (TF-IDF + Logistic Regression classifier with precision/recall/F1 evaluation, per master spec §12). That work is **still on their machine** and has not been reviewed, merged, or committed here — `ml/` currently holds only the placeholder `README.md`.
+- Integration checklist before the repo can call this "done": (1) work lands in `ml/` (data/training/evaluation/models) on a feature branch, (2) dependencies pinned in a lockable file compatible with our **Python 3.12** constraint (ADR 0001), (3) evaluation report including precision/recall/F1, confusion matrix, false positives/negatives, and threshold calibration — especially misclassification of legitimate banking/OTP messages, (4) dataset limitations documented (Indian English/Hinglish/Hindi coverage), (5) status document updated. No performance claims are accepted without that report.
 
 ### 7. Scam Shield Core Pipeline (`scamshield_core/`)
 **Status:** Not started. Placeholder directory. Will hold the shared analysis pipeline (redaction → entities → rules → reputation → similarity → scoring → explanation) that both the text path and the worker path will import. Target: **M2**.
@@ -107,9 +109,10 @@ The project is at **M1 — Local Skeleton** (plus the M0 foundation it needs). A
 
 ## Git History
 
-6 commits on `main`, one logical unit each:
+7 commits on `main`, one logical unit each:
 
 ```
+f02471f docs: add implementation status document
 3c4bff9 fix: keep tests in backend image so pytest runs in-container
 099d71b chore: add docker-compose local stack
 0e6b259 feat: add Vite React frontend skeleton
@@ -118,12 +121,15 @@ aea2989 docs: add M0 foundation (requirements, architecture, threat model, cost,
 743486e chore: initialise repository with gitignore, README and module placeholders
 ```
 
+**Note:** the ML work is being developed outside this repo (not on a branch). It must be merged in as its own feature branch with a `feat: ml ...` commit — never bundled into an unrelated commit.
+
 ## What Is Deliberately Not Implemented Yet
 
 - No AWS resources, IaC, roles, or credentials of any kind.
 - No analysis pipeline (rules/ML/embeddings) — but the tables it writes to already exist.
 - No HTTP reports API — `GET /health` is the only endpoint; `POST /reports` arrives in M2.
 - No auth, rate limiting, uploads, S3/SQS/OCR, or CloudWatch.
+- ML baseline exists only externally (teammate's machine) — **nothing merged or verified**, and its performance is unclaimed until the evaluation report lands.
 - Minor known warning: `TestClient`/httpx deprecation notice in test output (dependency-level, non-blocking).
 
 ## Next Steps (M2 — Detection Engine)
