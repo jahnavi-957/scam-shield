@@ -204,13 +204,3 @@ Designed to run within AWS Free Tier / new-account credits. Estimated monthly co
 - Scam-type taxonomy currently covers 4–5 major categories; expandable with more labeled data
 
 ---
-
-## Team
-
-- [Jahnavi Shah] – [10700]
-- [Tanish Ingole] – [10661]
-- [Shreysh Nair] – [10680]
-
-## License
-
-MIT
