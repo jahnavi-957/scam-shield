@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-line;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 4rem;
+  }
+
+  body {
+    @apply bg-bg text-ink antialiased;
+    font-feature-settings: 'cv01', 'cv02', 'cv03', 'cv04', 'ss01';
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/40 ring-offset-2 ring-offset-bg;
+  }
+
+  .mouse-focus :focus-visible {
+    @apply ring-0;
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-accent-ink;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #e6e3da transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-line;
+  }
+
+  *::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+}
+
+@layer components {
+  .text-display {
+    @apply text-5xl font-bold tracking-tight text-ink sm:text-6xl lg:text-7xl;
+  }
+
+  .text-headline {
+    @apply text-3xl font-bold tracking-tight text-ink sm:text-4xl;
+  }
+
+  .text-title {
+    @apply text-xl font-semibold tracking-tight text-ink;
+  }
+
+  .text-body {
+    @apply text-base leading-relaxed text-ink-soft;
+  }
+
+  .text-meta {
+    @apply text-xs uppercase tracking-wide text-ink-faint;
+  }
+
+  .divider {
+    @apply h-px w-full bg-line;
+  }
+
+  .page-enter {
+    animation: fadeIn 260ms var(--ease) both;
+  }
+
+  .reveal {
+    @apply opacity-0 translate-y-5 transition-all duration-700 ease-out;
+  }
+
+  .reveal.is-visible {
+    @apply opacity-100 translate-y-0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      @apply opacity-100 translate-y-0 transition-none;
+    }
+
+    .animate-marquee-slow {
+      animation: none;
+    }
+  }
+
+  .gradient-blob {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+    background: radial-gradient(circle at 30% 30%, rgba(59, 63, 140, 0.10), rgba(59, 63, 140, 0) 70%);
+  }
+
+  .gradient-blob.safe {
+    background: radial-gradient(circle at 30% 30%, rgba(47, 125, 90, 0.08), rgba(47, 125, 90, 0) 70%);
+  }
+
+  .animate-marquee-slow {
+    animation: marquee-slow 28s linear infinite;
+  }
+
+  .animate-boot-dot {
+    animation: bootDot 1.2s ease-in-out infinite;
+  }
+
+  @keyframes marquee-slow {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes bootDot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+}
