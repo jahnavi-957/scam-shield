@@ -14,12 +14,12 @@ services:
     # as a `vector` column (extension enabled by Alembic
     # migration 0001), so local dev matches RDS exactly.
     image: pgvector/pgvector:pg16
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: scamshield
-      # Dev-only default for localhost. Never reused on AWS —
-      # real credentials are injected from SSM at deploy time.
-      POSTGRES_PASSWORD: scamshield_dev
-      POSTGRES_DB: scamshield
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env first}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -30,20 +30,33 @@ services:
       timeout: 5s
       retries: 10
 
+  # Lightweight S3-compatible mock service for local dev: presigned URLs,
+  # screenshot uploads and OCR all work against this service exactly
+  # as they would against real S3 in production.
+  s3mock:
+    build:
+      context: ./infra/s3mock
+    ports:
+      - "127.0.0.1:4566:4566"
+    volumes:
+      - s3_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4566/health').status==200 else 1)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     # Build context is the repo root: the image needs both
     # backend/ (the API) and ml/scamshield_ml (the AI module).
     build:
-      context: ..
+      context: .
       dockerfile: backend/Dockerfile
     # Dev mode: live-reload instead of gunicorn.
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    env_file:
+      - .env
     environment:
-      # Service name `db` resolves inside the compose network.
-      DATABASE_URL: postgresql+psycopg://scamshield:scamshield_dev@db:5432/scamshield
-      CORS_ORIGINS: http://localhost:5173
-      ENVIRONMENT: local
-      SSM_ENABLED: "false"
       # In dev the host's trained model is mounted below; the
       # classifier picks it up through SCAM_MODEL_DIR.
       SCAM_MODEL_DIR: /var/lib/scamshield/model
@@ -59,6 +72,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      s3mock:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 10s
@@ -67,6 +82,8 @@ services:
 
   frontend:
     build: ./frontend
+    env_file:
+      - .env
     volumes:
       - ./frontend:/app
       # Named volume keeps container-installed node_modules alive across
@@ -79,4 +96,5 @@ services:
 
 volumes:
   pgdata:
+  s3_data:
   frontend_node_modules:

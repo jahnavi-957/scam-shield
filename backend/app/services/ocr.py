@@ -78,5 +78,6 @@ def extract_text_from_image(s3_key: str) -> str:
 
     if _provider is None or _config is None:
         raise RuntimeError("OCR not initialised — init_ocr() runs at app startup")
-    image_bytes = storage.fetch_object(s3_key)
+    image_bytes = storage.fetch_object(s3_key, max_bytes=_config.max_image_bytes)
+    storage.validate_image(image_bytes, _config)
     return _provider.extract_text(image_bytes)

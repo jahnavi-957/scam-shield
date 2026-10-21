@@ -39,6 +39,10 @@ export default function HeroInput() {
         near_duplicates: result.near_duplicates,
         alert_triggered: result.alert_triggered,
         created_at: result.created_at,
+        truncated: result.truncated,
+        classifier_kind: result.classifier_kind,
+        similarity_score: result.similarity_score,
+        matched_scam_id: result.matched_scam_id,
       });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
@@ -74,7 +78,7 @@ export default function HeroInput() {
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-ink-faint">
           Include sender names, UPI IDs, or links for the best result.
-          Your message is analyzed locally and never shared.
+          Your message is sent to Scam Shield to provide this check. No account is required.
         </p>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={handleReset} disabled={!text}>

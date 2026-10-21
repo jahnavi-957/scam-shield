@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +26,20 @@ class AnalyzeScreenshotRequest(BaseModel):
         pattern=r"^uploads/[0-9a-f]{32}\.(?:png|jpg)$",
         examples=["uploads/9f8c2b1a4d5e6f708192a3b4c5d6e7f8.png"],
     )
+
+
+class PresignedUploadRequest(BaseModel):
+    """Validated query parameters for a presigned screenshot upload."""
+
+    content_type: Literal["image/png", "image/jpeg"] = "image/png"
+    expires_in: int | None = Field(default=None, ge=1, le=300)
+
+
+class EntityLookupQuery(BaseModel):
+    """Query-string form of entity lookup, including optional type context."""
+
+    value: str = Field(min_length=1, max_length=512)
+    entity_type: Literal["upi", "phone", "url"] | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -56,6 +71,12 @@ class AnalysisResponse(BaseModel):
     near_duplicates: list[int]
     alert_triggered: bool
     created_at: datetime
+    # Diagnostics carried through from ScamVerdict. Database-backed
+    # `near_duplicates` remains the authoritative report-match list.
+    truncated: bool = False
+    classifier_kind: str = ""
+    similarity_score: float | None = None
+    matched_scam_id: str | None = None
 
 
 class PresignedUploadResponse(BaseModel):

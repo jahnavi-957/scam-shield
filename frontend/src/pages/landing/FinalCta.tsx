@@ -5,7 +5,7 @@ import { useUiStore } from '../../store';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function FinalCta() {
-  const { goHome } = useUiStore();
+  const { goHome, goLookup } = useUiStore();
   const { ref, visible } = useReveal<HTMLDivElement>({ threshold: 0.12 });
 
   return (
@@ -37,7 +37,7 @@ export default function FinalCta() {
               Analyze a message
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button variant="secondary" size="lg" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <Button variant="secondary" size="lg" onClick={goLookup}>
               Look up an entity
             </Button>
           </div>

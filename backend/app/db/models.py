@@ -49,8 +49,7 @@ EMBEDDING_DIM = 384  # output length of all-MiniLM-L6-v2 (ml package)
 
 
 class Message(Base):
-    """One submitted message, raw text only (PII redaction happens
-    in the ml layer before anything is persisted beyond this row)."""
+    """One submitted message with sensitive identifiers redacted at rest."""
 
     __tablename__ = "messages"
     __table_args__ = (

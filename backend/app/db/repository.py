@@ -16,11 +16,13 @@ import functools
 import time
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db.models import AnalysisResult, Entity, Message, MessageEntity
+from app.services.entities import normalize_entity_value
 
 
 def retried(attempts: int = 3, base_delay: float = 0.5):
@@ -107,6 +109,10 @@ def find_similar_analyses(
             AnalysisResult.message_id,
             AnalysisResult.embedding.cosine_distance(embedding).label("distance"),
         )
+        .where(
+            AnalysisResult.is_scam.is_(True),
+            AnalysisResult.embedding.is_not(None),
+        )
         .order_by("distance")
         .limit(limit)
     )
@@ -126,13 +132,14 @@ def find_similar_analyses(
 # --------------------------------------------------------------------------- #
 @retried()
 def find_or_create_entity(db: Session, *, entity_type: str, value: str) -> Entity:
+    normalized_value = normalize_entity_value(entity_type, value)
     entity = db.scalar(
         select(Entity).where(
-            Entity.entity_type == entity_type, Entity.normalized_value == value
+            Entity.entity_type == entity_type, Entity.normalized_value == normalized_value
         )
     )
     if entity is None:
-        entity = Entity(entity_type=entity_type, normalized_value=value)
+        entity = Entity(entity_type=entity_type, normalized_value=normalized_value)
         db.add(entity)
         db.commit()
         db.refresh(entity)
@@ -221,8 +228,36 @@ def get_entity_history(
 
 
 @retried()
-def find_entity_by_value(db: Session, *, value: str) -> Entity | None:
+def find_entity_by_value(
+    db: Session, *, value: str, entity_type: str | None = None
+) -> Entity | None:
     """Look up an entity by its normalised value alone (the API
     surface exposes value-only search; the unique constraint is
     (type, value), so this takes the first match)."""
-    return db.scalar(select(Entity).where(Entity.normalized_value == value))
+    if entity_type:
+        normalized = normalize_entity_value(entity_type, value)
+        stmt = select(Entity).where(
+            Entity.entity_type == entity_type,
+            Entity.normalized_value == normalized,
+        )
+        return db.scalar(stmt)
+
+    candidates: list[tuple[str, str]] = []
+    for candidate_type in ("upi", "phone", "url"):
+        try:
+            candidates.append((candidate_type, normalize_entity_value(candidate_type, value)))
+        except ValueError:
+            continue
+    if not candidates:
+        return None
+    return db.scalar(
+        select(Entity).where(
+            or_(
+                *(
+                    (Entity.entity_type == candidate_type)
+                    & (Entity.normalized_value == normalized)
+                    for candidate_type, normalized in candidates
+                )
+            )
+        )
+    )

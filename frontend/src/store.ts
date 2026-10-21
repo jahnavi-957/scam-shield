@@ -6,6 +6,7 @@ import { create } from 'zustand';
 
 export type View =
   | { kind: 'home' }
+  | { kind: 'lookup' }
   | { kind: 'analyzing'; source: 'text' | 'screenshot' }
   | { kind: 'result'; analysis: AnalysisSummary }
   | { kind: 'entity'; value: string }
@@ -23,6 +24,10 @@ export interface AnalysisSummary {
   near_duplicates: number[];
   alert_triggered: boolean;
   created_at: string;
+  truncated?: boolean;
+  classifier_kind?: string;
+  similarity_score?: number | null;
+  matched_scam_id?: string | null;
 }
 
 interface UiState {
@@ -30,7 +35,10 @@ interface UiState {
   pendingText: string;
   pendingFile: File | null;
   setView: (view: View) => void;
+  syncPath: () => void;
   goHome: () => void;
+  goLookup: () => void;
+  goUpload: () => void;
   startTextAnalysis: (text: string) => void;
   startScreenshotAnalysis: (file: File) => void;
   showResult: (analysis: AnalysisSummary) => void;
@@ -42,17 +50,47 @@ interface UiState {
 
 const homeView: View = { kind: 'home' };
 
+function viewForPath(pathname: string): View {
+  if (pathname === '/lookup') return { kind: 'lookup' };
+  if (pathname === '/upload') return { kind: 'analyzing', source: 'screenshot' };
+  return homeView;
+}
+
+function currentPath(): string {
+  return typeof window === 'undefined' ? '/' : window.location.pathname;
+}
+
+function navigate(pathname: string): void {
+  if (typeof window !== 'undefined' && window.location.pathname !== pathname) {
+    window.history.pushState({}, '', pathname);
+  }
+}
+
 export const useUiStore = create<UiState>((set) => ({
-  view: homeView,
+  view: viewForPath(currentPath()),
   pendingText: '',
   pendingFile: null,
 
   setView: (view) => set({ view }),
-  goHome: () => set({ view: homeView, pendingText: '', pendingFile: null }),
+  syncPath: () => set({ view: viewForPath(currentPath()) }),
+  goHome: () => {
+    navigate('/');
+    set({ view: homeView, pendingText: '', pendingFile: null });
+  },
+  goLookup: () => {
+    navigate('/lookup');
+    set({ view: { kind: 'lookup' } });
+  },
+  goUpload: () => {
+    navigate('/upload');
+    set({ view: { kind: 'analyzing', source: 'screenshot' }, pendingFile: null });
+  },
   startTextAnalysis: (text) =>
     set({ view: { kind: 'analyzing', source: 'text' }, pendingText: text }),
-  startScreenshotAnalysis: (file) =>
-    set({ view: { kind: 'analyzing', source: 'screenshot' }, pendingFile: file }),
+  startScreenshotAnalysis: (file) => {
+    navigate('/upload');
+    set({ view: { kind: 'analyzing', source: 'screenshot' }, pendingFile: file });
+  },
   showResult: (analysis) => set({ view: { kind: 'result', analysis } }),
   showError: (message) => set({ view: { kind: 'error', message } }),
   goEntity: (value) => set({ view: { kind: 'entity', value } }),

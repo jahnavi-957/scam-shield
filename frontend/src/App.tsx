@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FuturisticBackground } from './components/FuturisticBackground';
 import { LoadingScreen } from './components/LoadingScreen';
 import { AppShell } from './components/layout/AppShell';
@@ -13,7 +13,12 @@ import LookupPage from './pages/LookupPage';
 
 export default function App() {
   const [booted, setBooted] = useState(false);
-  const { view } = useUiStore();
+  const { view, syncPath } = useUiStore();
+
+  useEffect(() => {
+    window.addEventListener('popstate', syncPath);
+    return () => window.removeEventListener('popstate', syncPath);
+  }, [syncPath]);
 
   return (
     <>
@@ -33,7 +38,7 @@ export default function App() {
               <ResultPage />
             ) : view.kind === 'error' ? (
               <ErrorPage />
-            ) : view.kind === 'entity' ? (
+            ) : view.kind === 'lookup' || view.kind === 'entity' ? (
               <LookupPage />
             ) : null}
           </main>

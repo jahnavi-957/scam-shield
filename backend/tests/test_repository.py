@@ -97,9 +97,15 @@ def test_find_similar_analyses_by_cosine_distance(db_session):
 
     # Nearly identical embedding -> cosine distance ~0.
     similar = repository.find_similar_analyses(
-        db_session, embedding=_embedding(0.99), max_distance=0.15, exclude_message_id=message.id
+        db_session, embedding=_embedding(0.99), max_distance=0.15
     )
     assert [hit["message_id"] for hit in similar] == [message.id]
+
+    # When exclude_message_id is specified, that message is omitted
+    excluded = repository.find_similar_analyses(
+        db_session, embedding=_embedding(0.99), max_distance=0.15, exclude_message_id=message.id
+    )
+    assert excluded == []
 
     # Orthogonal embedding -> cosine distance ~1.4, not similar.
     dissimilar = repository.find_similar_analyses(

@@ -28,14 +28,42 @@ logger = logging.getLogger(__name__)
 _sns = None
 _topic_arn: str = ""
 _window = timedelta(hours=24)
+_mock_enabled = False
+_mock_messages: list[dict[str, str | int]] = []
+
+
+class MockSNS:
+    """Local SNS substitute for development and deterministic tests."""
+
+    def publish(self, **kwargs):
+        _mock_messages.append(
+            {
+                "TopicArn": str(kwargs.get("TopicArn", "")),
+                "Subject": str(kwargs.get("Subject", "")),
+                "Message": str(kwargs.get("Message", "")),
+            }
+        )
+        return {"MessageId": "local-mock"}
 
 
 def init_alerts(config) -> None:
     """Bind the SNS client, topic ARN and alert window at startup."""
-    global _sns, _topic_arn, _window
-    _sns = boto3.client("sns", region_name=config.aws_region)
-    _topic_arn = config.sns_topic_arn
+    global _sns, _topic_arn, _window, _mock_enabled, _mock_messages
+    _mock_enabled = bool(getattr(config, "sns_mock_enabled", False))
+    _mock_messages = []
+    _topic_arn = config.sns_topic_arn or ("mock://sns" if _mock_enabled else "")
     _window = timedelta(minutes=config.alert_window_minutes)
+    if _mock_enabled:
+        _sns = MockSNS()
+    elif _topic_arn:
+        _sns = boto3.client("sns", region_name=config.aws_region)
+    else:
+        _sns = None
+
+
+def get_mock_messages() -> list[dict[str, str | int]]:
+    """Return a copy of locally captured alerts for development inspection."""
+    return list(_mock_messages)
 
 
 def should_alert(
@@ -68,8 +96,7 @@ def publish_alert(entity_value: str, entity_type: str, report_count: int) -> boo
     """
     if not _topic_arn:
         logger.debug(
-            "no SNS topic configured; skipping alert for %s (%d reports)",
-            entity_value,
+            "no SNS topic configured; skipping alert (%d reports)",
             report_count,
         )
         return False
@@ -86,6 +113,6 @@ def publish_alert(entity_value: str, entity_type: str, report_count: int) -> boo
     )
     logger.info(
         "sns alert published",
-        extra={"entity_value": entity_value, "entity_type": entity_type, "report_count": report_count},
+        extra={"entity_type": entity_type, "report_count": report_count},
     )
     return True

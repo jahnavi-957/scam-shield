@@ -27,7 +27,7 @@ const features = [
   {
     icon: <Lock className="h-5 w-5" />,
     title: 'Private by design',
-    description: 'Your messages are analyzed locally and never shared. No account, no tracking, no fuss.',
+    description: 'Your message is sent to Scam Shield to provide the check. No account is required, and the result is explained plainly.',
   },
   {
     icon: <Globe className="h-5 w-5" />,

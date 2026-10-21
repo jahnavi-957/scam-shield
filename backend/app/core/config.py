@@ -25,7 +25,12 @@ from functools import lru_cache
 from typing import Any
 
 import boto3
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ConfigurationError(RuntimeError):
+    """Raised when the service cannot build a safe runtime configuration."""
 
 
 class Settings(BaseSettings):
@@ -37,8 +42,10 @@ class Settings(BaseSettings):
     # local | dev | prod — also selects the SSM parameter path.
     environment: str = "local"
 
-    # Database (compose default points at the service name `db`).
-    database_url: str = "postgresql+psycopg://scamshield:scamshield_dev@db:5432/scamshield"
+    # Required at runtime. Local Compose supplies it from the repository-root
+    # `.env`; production supplies it from SSM. No connection string is baked
+    # into the application defaults.
+    database_url: str = ""
 
     # AWS
     aws_region: str = "us-east-1"
@@ -48,13 +55,27 @@ class Settings(BaseSettings):
     # S3 / SNS (empty locally -> presigned URLs and alerts no-op)
     s3_bucket: str = ""
     sns_topic_arn: str = ""
+    # Custom S3 endpoint: set to the internal MinIO URL for local dev.
+    s3_endpoint_url: str = ""
+    # Optional public URL used in presigned responses when the API can reach
+    # MinIO by an internal hostname but the browser must use localhost.
+    s3_public_endpoint_url: str = ""
+    s3_force_path_style: bool = True
+    # Optional explicit credentials for local MinIO. AWS deployments should
+    # use the instance/task role instead.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_session_token: str = ""
+    sns_mock_enabled: bool = False
 
     # Alert rule: fire when an entity reaches N reports within M minutes.
     alert_threshold: int = 5
     alert_window_minutes: int = 1440  # 24 hours
 
     # Presigned upload URL lifetime (seconds).
-    presign_expiry_seconds: int = 900
+    # 5 minutes: short-lived capability — just long enough for the
+    # frontend to upload, tight enough to limit abuse.
+    presign_expiry_seconds: int = Field(default=300, ge=1, le=300)
 
     # OCR engine: tesseract (local binary) | textract (AWS service)
     ocr_engine: str = "tesseract"
@@ -66,15 +87,66 @@ class Settings(BaseSettings):
     model_dir: str = "/var/lib/scamshield/model"
 
     # Input limits
-    max_text_length: int = 10_000
-    max_payload_bytes: int = 2 * 1024 * 1024  # 2 MB
+    max_text_length: int = Field(default=10_000, ge=1, le=100_000)
+    max_payload_bytes: int = Field(default=2 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
+    max_image_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
+    max_image_width: int = Field(default=4096, ge=1, le=16_384)
+    max_image_height: int = Field(default=4096, ge=1, le=16_384)
+    max_image_pixels: int = Field(default=16_777_216, ge=1, le=268_435_456)
+
+    # In-memory abuse controls. The limiter intentionally does not persist or
+    # log the requester address.
+    analysis_rate_limit_per_minute: int = Field(default=20, ge=1, le=10_000)
+    analysis_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3_600)
+
+    # Security headers. HSTS is opt-in so local HTTP development is not
+    # pinned to HTTPS; production deployments should enable it at the edge or
+    # set this flag when TLS terminates in the application.
+    security_headers_enabled: bool = True
+    hsts_enabled: bool = False
 
     # Frontend origins allowed by CORS
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:8000,http://127.0.0.1:8000"
+    )
+    cors_methods: str = "GET,POST,PUT,DELETE,OPTIONS,HEAD"
+    cors_headers: str = (
+        "Accept,Content-Type,Origin,X-Requested-With,Cache-Control,Pragma,Authorization"
+    )
 
     @property
     def cors_origins_as_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def cors_methods_as_list(self) -> list[str]:
+        return [method.strip().upper() for method in self.cors_methods.split(",") if method.strip()]
+
+    @property
+    def cors_headers_as_list(self) -> list[str]:
+        return [header.strip() for header in self.cors_headers.split(",") if header.strip()]
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if "*" in self.cors_methods_as_list or "*" in self.cors_headers_as_list:
+            raise ValueError("wildcard CORS methods and headers are not permitted")
+        if "*" in self.cors_origins_as_list:
+            raise ValueError("wildcard CORS origins are not permitted")
+        if self.environment.lower() == "prod" and self.ssm_enabled:
+            if not self.ssm_prefix.strip():
+                raise ValueError("SSM_PREFIX is required when production SSM is enabled")
+        if self.environment.lower() == "prod" and any(
+            not origin.lower().startswith("https://") for origin in self.cors_origins_as_list
+        ):
+            raise ValueError("production CORS origins must use HTTPS")
+        if self.environment.lower() == "prod":
+            for endpoint in (self.s3_endpoint_url, self.s3_public_endpoint_url):
+                if endpoint and not endpoint.lower().startswith("https://"):
+                    raise ValueError("production S3 endpoints must use HTTPS")
+            if any((self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token)):
+                raise ValueError("production AWS credentials must come from the instance role")
+        return self
 
     @property
     def ssm_path(self) -> str:
@@ -106,12 +178,15 @@ def load_secrets_from_ssm(settings: Settings) -> dict[str, str]:
     import logging
 
     logger = logging.getLogger(__name__)
-    ssm = boto3.client("ssm", region_name=settings.aws_region)
     full_names = [f"{settings.ssm_path}/{name}" for name in SSM_SECRET_NAMES]
 
     try:
+        ssm = boto3.client("ssm", region_name=settings.aws_region)
         response = ssm.get_parameters(Names=full_names, WithDecryption=True)
-    except Exception:
+    except Exception as exc:
+        if settings.environment.lower() == "prod":
+            logger.critical("SSM get_parameters failed in production; refusing fallback")
+            raise ConfigurationError("Production secrets could not be loaded from SSM") from exc
         logger.error("SSM get_parameters failed; falling back to env values", exc_info=True)
         return {}
 
@@ -121,6 +196,9 @@ def load_secrets_from_ssm(settings: Settings) -> dict[str, str]:
     }
     missing = [name for name in full_names if name.rsplit("/", 1)[-1] not in found]
     if missing:
+        if settings.environment.lower() == "prod":
+            logger.critical("Required SSM parameters are missing in production")
+            raise ConfigurationError("Required production secrets are missing from SSM")
         logger.warning("SSM parameters not found (env values will apply): %s", missing)
     return found
 
@@ -164,4 +242,13 @@ def bootstrap() -> RuntimeConfig:
     secrets. Called once at container startup (FastAPI lifespan)."""
     settings = get_settings()
     secrets = load_secrets_from_ssm(settings)
-    return RuntimeConfig(settings, secrets)
+    runtime = RuntimeConfig(settings, secrets)
+    if not runtime.database_url:
+        raise ConfigurationError("DATABASE_URL is required")
+    if settings.environment.lower() == "prod" and (
+        not runtime.s3_bucket or not runtime.sns_topic_arn
+    ):
+        raise ConfigurationError(
+            "Production S3_BUCKET and SNS_TOPIC_ARN are required from SSM"
+        )
+    return runtime

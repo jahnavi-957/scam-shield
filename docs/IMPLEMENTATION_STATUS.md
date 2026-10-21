@@ -1,10 +1,10 @@
 # Scam Shield — Implementation Status
 
-*Last updated: 2026-10-11 · Backend API and ML pipeline implemented and verified locally; AWS work not started.*
+*Last updated: 2026-10-21 · Local integration and application security hardening implemented; AWS infrastructure remains deferred.*
 
 ## Overall Status
 
-The project is at **M1 skeleton + M2 detection engine (backend side)**. The local Docker Compose stack (FastAPI + React + PostgreSQL/pgvector) is in place, the `ml/` package ships a fine-tuned DistilBERT classifier and MiniLM embedder, and the FastAPI backend implements the full analysis API on top of them.
+The project is at **integrated local stack + M2 detection engine with local security controls**. The Docker Compose configuration includes FastAPI, React, PostgreSQL/pgvector and MinIO; the `ml/` package provides the classifier/embedder pipeline; and the backend implements text, screenshot, validation, privacy, rate-limit, alert-mock and API error flows.
 
 **No AWS resources have been created. No AWS credentials exist anywhere in the repository.** AWS work starts at M3 by plan.
 
@@ -22,7 +22,7 @@ The project is at **M1 skeleton + M2 detection engine (backend side)**. The loca
 | M8 | CloudWatch metrics/dashboard/alarms/SNS | Not started (SNS publish implemented) |
 | M9 | Campaign detection + optional Bedrock explanation | Not started |
 | M10 | Terraform + GitHub Actions + OIDC | Not started |
-| M11 | Security hardening | Not started |
+| M11 | Security hardening | **Local controls done; AWS IAM/VPC/retention/auth deferred** |
 | M12 | Finalization (tests, demo, cost evidence, teardown) | Not started |
 
 ## Directory Breakdown & Progress
@@ -36,7 +36,7 @@ The project is at **M1 skeleton + M2 detection engine (backend side)**. The loca
 - `app/ai.py` — lazy adapter around `scamshield_ml.analyze_message()`; heavy imports deferred to first request; any model failure becomes `AIPipelineError` → generic 500 (real error logged server-side).
 - `app/core/config.py` — env-driven settings; `bootstrap()` overlays `/scam-shield/<env>/{database_url,s3_bucket,sns_topic_arn}` from SSM (decrypted) when enabled.
 - `app/db/` — declarative `Base`, session factory + `get_db`, repository layer (save/find, idempotent entities, windowed report counts, pgvector cosine search), retry with exponential backoff on transient `OperationalError`.
-- `app/services/` — `analysis.py` (orchestration: persist → classify → embed → near-duplicate check → entity tracking → alert evaluation), `alerts.py` (SNS publish, `should_alert` threshold rule with cooldown), `storage.py` (15-min presigned S3 PUT URLs), `ocr.py` (Tesseract, `OCR_ENGINE=textract` switchable), `model_loader.py` (one-time weight download from S3, rule-based fallback).
+- `app/services/` — `analysis.py` (orchestration: redact → classify → embed → near-duplicate check → entity tracking → alert evaluation), `alerts.py` (SNS publish/mock, `should_alert` threshold rule with cooldown), `storage.py` (5-minute bounded presigned S3 PUT URLs and image validation), `ocr.py` (Tesseract, `OCR_ENGINE=textract` switchable), `model_loader.py` (one-time weight download from S3, rule-based fallback).
 - `alembic/` — two migrations, single head `0002`: `0001` M1 scam-graph schema, `0002` analysis schema (drops the M1 tables, creates `messages`, `entities`, `analysis_results` with `vector(384)`, `message_entities`; enables the `vector` extension).
 - `tests/` — **30 tests: 10 unit pass, 20 integration skip cleanly** when the compose Postgres is unreachable (they run against it via `docker compose up -d db`). The AI pipeline is always mocked in tests (real model loading is far too slow); the adapter itself is covered by the ml package's own suite.
 - `scripts/start.sh` — container start: `alembic upgrade head` → S3 model download → gunicorn, 1 worker (each worker holds the model in RAM).
@@ -74,7 +74,7 @@ The project is at **M1 skeleton + M2 detection engine (backend side)**. The loca
 - Verified: all three containers `Up (healthy)`, health endpoint 200.
 
 ### 5. Infrastructure (`infra/`)
-**Status:** Not started. Placeholder `README.md` only. Terraform (VPC → RDS → EC2/ALB → S3/SQS …) is generated from **M3** onward — never before the local app is proven to work.
+**Status:** Deferred. The repository now contains reviewed IAM policy JSON and local MinIO/Compose configuration, but Terraform (VPC → RDS → EC2/ALB → private S3/SQS …) is still not implemented.
 
 ### 6. Machine Learning (`ml/`)
 **Status:** Done — merged into the repo.
@@ -134,8 +134,10 @@ The repository currently sits on a single setup commit (`8d240c1 first commit to
 - No AWS resources, IaC, roles, or credentials of any kind (`infra/` is a README placeholder; Terraform starts at M3).
 - No frontend analysis UI — `frontend/src/api.ts` only calls `/health`; the analyze/entities/presigned-upload client functions are the natural next frontend task.
 - No `scamshield_core` shared pipeline or async `worker/` (the synchronous backend path covers the same flow for now; the worker arrives in M6).
-- No auth, rate limiting, SQS, or CloudWatch alarms.
-- S3 lifecycle rules for uploaded screenshots are documented as Terraform's job (`backend/README.md`), not implemented.
+- No auth, shared multi-worker rate limiting, SQS, or CloudWatch alarms.
+- Local request limits, image validation, redaction, security headers, and
+  best-effort screenshot deletion are implemented; AWS bucket lifecycle and
+  scheduled database retention remain deferred (see `SECURITY.md`).
 
 ## Next Steps
 

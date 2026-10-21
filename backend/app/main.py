@@ -19,7 +19,8 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
@@ -29,9 +30,12 @@ from app.api import api_router
 from app.core.config import bootstrap, get_settings
 from app.db.session import dispose_db, init_db
 from app.logging_config import setup_logging
+from app.security import InMemoryRateLimiter, RequestBodyTooLarge
+from app.schemas.errors import ERROR_RESPONSES, ValidationErrorItem
 from app.services import alerts, model_loader, ocr, storage
 
 logger = logging.getLogger(__name__)
+analysis_rate_limiter = InMemoryRateLimiter()
 
 
 @asynccontextmanager
@@ -39,6 +43,7 @@ async def lifespan(app: FastAPI):
     setup_logging()
     config = bootstrap()
     app.state.config = config
+    analysis_rate_limiter.clear()
 
     init_db(config)
     storage.init_storage(config)
@@ -66,6 +71,7 @@ app = FastAPI(
     description="Backend for the Scam Shield scam-intelligence platform.",
     version="0.2.0",
     lifespan=lifespan,
+    responses=ERROR_RESPONSES,
 )
 
 # In production the browser talks to the same origin (ALB), so CORS stays
@@ -75,25 +81,125 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins_as_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # The browser client uses no cookies or credentialed cross-origin
+    # requests. Keeping this false avoids widening the trust boundary if a
+    # wildcard or overly broad origin is ever introduced by mistake.
+    allow_credentials=False,
+    allow_methods=get_settings().cors_methods_as_list,
+    allow_headers=get_settings().cors_headers_as_list,
 )
 
 
 @app.middleware("http")
 async def reject_oversized_payloads(request: Request, call_next):
-    """Enforce the configured payload cap before the body is read."""
+    """Enforce the configured payload cap for declared and streamed bodies."""
     length = request.headers.get("content-length")
-    if length and length.isdigit():
-        config = getattr(request.app.state, "config", None)
-        limit = config.max_payload_bytes if config else 2 * 1024 * 1024
-        if int(length) > limit:
+    config = getattr(request.app.state, "config", get_settings())
+    limit = config.max_payload_bytes
+    if length and length.isdigit() and int(length) > limit:
+        return JSONResponse(
+            status_code=413,
+            content={"code": "request_too_large", "detail": f"Payload exceeds {limit} bytes."},
+        )
+
+    received = 0
+    original_receive = request.receive
+
+    async def limited_receive():
+        nonlocal received
+        message = await original_receive()
+        if message.get("type") == "http.request":
+            received += len(message.get("body", b""))
+            if received > limit:
+                raise RequestBodyTooLarge(limit)
+        return message
+
+    request._receive = limited_receive
+    try:
+        return await call_next(request)
+    except RequestBodyTooLarge as exc:
+        return JSONResponse(
+            status_code=413,
+            content={"code": "request_too_large", "detail": f"Payload exceeds {exc.limit} bytes."},
+        )
+
+
+@app.middleware("http")
+async def limit_analysis_requests(request: Request, call_next):
+    """Apply an in-memory per-client limiter to analysis endpoints only."""
+    if request.method == "POST" and request.url.path in {"/analyze/text", "/analyze/screenshot"}:
+        config = getattr(request.app.state, "config", get_settings())
+        client_key = request.client.host if request.client else "unknown"
+        allowed, retry_after = analysis_rate_limiter.allow(
+            client_key,
+            limit=config.analysis_rate_limit_per_minute,
+            window_seconds=config.analysis_rate_limit_window_seconds,
+        )
+        if not allowed:
             return JSONResponse(
-                status_code=413,
-                content={"detail": f"Payload exceeds {limit} bytes."},
+                status_code=429,
+                headers={"Retry-After": str(retry_after)},
+                content={
+                    "code": "rate_limited",
+                    "detail": "Too many analysis requests. Please try again later.",
+                },
             )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    config = getattr(request.app.state, "config", get_settings())
+    if config.security_headers_enabled:
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        connect_src = (
+            "connect-src 'self'"
+            if config.environment.lower() == "prod"
+            else "connect-src 'self' http://localhost:* http://127.0.0.1:*"
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            f"default-src 'self'; base-uri 'self'; object-src 'none'; "
+            f"frame-ancestors 'none'; img-src 'self' data:; "
+            f"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            f"script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            f"{connect_src}",
+        )
+        if config.hsts_enabled or config.environment.lower() == "prod":
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        ValidationErrorItem(
+            loc=[str(part) if not isinstance(part, int) else part for part in error["loc"]],
+            msg=error["msg"],
+            type=error["type"],
+        ).model_dump()
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=422,
+        content={"code": "validation_error", "detail": errors},
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed."
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=exc.headers,
+        content={"code": f"http_{exc.status_code}", "detail": detail},
+    )
 
 
 @app.exception_handler(AIPipelineError)
@@ -103,7 +209,10 @@ async def ai_pipeline_error_handler(request: Request, exc: AIPipelineError):
     logger.error("unhandled AI pipeline error", exc_info=exc)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Analysis failed. Please try again later."},
+        content={
+            "code": "analysis_failed",
+            "detail": "Analysis failed. Please try again later.",
+        },
     )
 
 
@@ -114,7 +223,10 @@ async def db_operational_error_handler(request: Request, exc: OperationalError):
     logger.error("database operation failed", exc_info=exc)
     return JSONResponse(
         status_code=503,
-        content={"detail": "Database temporarily unavailable. Please try again."},
+        content={
+            "code": "database_unavailable",
+            "detail": "Database temporarily unavailable. Please try again.",
+        },
     )
 
 

@@ -88,7 +88,10 @@ The system must distinguish clearly between:
 - AWS resources of any kind.
 - ML models, rules, embeddings (M2).
 - Upload/S3/SQS/OCR (M6).
-- Authentication/rate limiting on the API (added with the relevant milestone; the local skeleton stays single-user).
+- Authentication and multi-user authorization remain out of scope for the
+  local single-user stack. Local analysis rate limiting and request-size
+  enforcement are implemented; shared/public rate limiting is a deployment
+  requirement.
 
 ## 6. Definition of done for the whole project
 A user submits a scam message and Scam Shield: redacts → normalizes → extracts entities → rules → ML → graph lookup → similarity → explainable score → persists report/verdict → returns verdict + evidence → updates identifier reputation → detects repeated campaign activity → emits metrics → raises SNS alert at threshold. Screenshots follow the async path to the same result.

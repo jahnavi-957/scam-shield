@@ -28,8 +28,7 @@ def setup_logging(level: str = "INFO") -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(
         jsonlogger.JsonFormatter(
-            "%(asctime)s %(levelname)s %(name)s %(message)s",
-            rename_message=True,
+            "%(asctime)s %(levelname)s %(name)s %(message)s"
         )
     )
     root = logging.getLogger()

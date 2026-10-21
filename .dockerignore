@@ -1,0 +1,19 @@
+# The backend Compose build uses the repository root as its context. Keep
+# local credentials, source-control metadata, datasets and generated assets
+# out of the Docker build context and image layers.
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.venv/
+frontend/node_modules/
+frontend/dist/
+ml/model/
+ml/dataset/
+logs/
+*.pem
+*.key

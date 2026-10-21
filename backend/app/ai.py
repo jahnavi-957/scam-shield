@@ -31,7 +31,8 @@ def analyze(text: str) -> dict:
 
     Returns a plain dict (JSON-friendly) with the verdict fields
     the API persists and returns: is_scam, scam_type, confidence,
-    explanation, embedding (384 floats) and the extracted entities.
+    explanation, embedding (384 floats), the extracted entities and the
+    diagnostic fields from ScamVerdict.
     """
     global _analyze_message
     try:
@@ -45,7 +46,7 @@ def analyze(text: str) -> dict:
         raise
     except Exception as exc:
         logger.error("AI pipeline call failed", exc_info=True)
-        raise AIPipelineError(f"AI pipeline failed: {exc}") from exc
+        raise AIPipelineError("AI pipeline failed") from exc
 
     return {
         "is_scam": bool(verdict.is_scam),
@@ -54,4 +55,9 @@ def analyze(text: str) -> dict:
         "explanation": verdict.explanation,
         "embedding": [float(x) for x in verdict.embedding],
         "entities": verdict.entities_found,
+        "near_duplicate": bool(verdict.near_duplicate),
+        "similarity_score": verdict.similarity_score,
+        "matched_scam_id": verdict.matched_scam_id,
+        "truncated": bool(verdict.truncated),
+        "classifier_kind": verdict.classifier_kind,
     }

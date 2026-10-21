@@ -5,10 +5,10 @@ import { useReveal } from '../../hooks/useReveal';
 import { cn } from '../../lib/utils';
 import { Textarea } from '../../components/ui/Textarea';
 import { Button } from '../../components/ui/Button';
-import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Image, Sparkles } from 'lucide-react';
 
 export default function HeroSection() {
-  const { goHome, showResult, showError } = useUiStore();
+  const { goHome, goUpload, showResult, showError } = useUiStore();
   const mutation = useAnalyzeText();
   const { ref, visible } = useReveal<HTMLDivElement>({ threshold: 0.1 });
 
@@ -41,6 +41,10 @@ export default function HeroSection() {
         near_duplicates: result.near_duplicates,
         alert_triggered: result.alert_triggered,
         created_at: result.created_at,
+        truncated: result.truncated,
+        classifier_kind: result.classifier_kind,
+        similarity_score: result.similarity_score,
+        matched_scam_id: result.matched_scam_id,
       });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
@@ -115,11 +119,14 @@ export default function HeroSection() {
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-ink-faint">
               Include sender names, UPI IDs, or links for the best result.
-              Your message is analyzed locally and never shared.
+              Your message is sent to Scam Shield to provide this check. No account is required.
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={handleReset} disabled={!text}>
                 Clear
+              </Button>
+              <Button variant="secondary" size="lg" onClick={goUpload} disabled={isBusy}>
+                <Image className="h-4 w-4" /> Screenshot
               </Button>
               <Button variant="primary" size="lg" onClick={handleSubmit} disabled={isBusy}>
                 {isBusy ? 'Analyzing…' : 'Analyze'}
@@ -137,7 +144,7 @@ export default function HeroSection() {
           )}
         >
           <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-safe" /> Private analysis
+            <CheckCircle2 className="h-4 w-4 text-safe" /> Privacy-minded checks
           </span>
           <span className="inline-flex items-center gap-1.5">
             <CheckCircle2 className="h-4 w-4 text-safe" /> No account required

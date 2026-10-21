@@ -20,8 +20,6 @@ import logging
 import os
 from pathlib import Path
 
-import boto3
-
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +44,9 @@ def download_model_if_needed(config) -> bool:
 
     try:
         model_dir.mkdir(parents=True, exist_ok=True)
-        s3 = boto3.client("s3", region_name=config.aws_region)
+        from app.services.storage import create_s3_client
+
+        s3 = create_s3_client(config)
         paginator = s3.get_paginator("list_objects_v2")
         downloaded = 0
         for page in paginator.paginate(Bucket=config.model_s3_bucket, Prefix=config.model_s3_key):
@@ -57,7 +57,9 @@ def download_model_if_needed(config) -> bool:
                 relative = key[len(config.model_s3_key):].lstrip("/")
                 if not relative:
                     continue
-                target = model_dir / relative
+                target = (model_dir / relative).resolve()
+                if model_dir.resolve() not in target.parents:
+                    raise ValueError("model object path escapes the configured model directory")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 s3.download_file(config.model_s3_bucket, key, str(target))
                 downloaded += 1

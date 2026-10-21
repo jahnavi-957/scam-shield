@@ -4,6 +4,7 @@ import {
   analyzeText,
   getEntityHistory,
   getPresignedUploadUrl,
+  normalizeImageContentType,
   uploadToS3,
 } from '../api/client';
 import type { AnalysisResponse, EntityHistoryResponse } from '../api/client';
@@ -33,8 +34,10 @@ export function useAnalyzeText() {
 export function useAnalyzeScreenshot() {
   return useMutation<AnalysisResponse, Error, File>({
     mutationFn: async (file) => {
-      const contentType =
-        file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+      const contentType = normalizeImageContentType(file.type);
+      if (!contentType) {
+        throw new Error('Please upload a PNG or JPG image.');
+      }
       const presigned = await getPresignedUploadUrl(contentType);
       await uploadToS3(presigned, file);
       return analyzeScreenshot(presigned.s3_key);

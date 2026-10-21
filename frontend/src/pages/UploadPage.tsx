@@ -4,8 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useUiStore } from '../store';
 import { useAnalyzeScreenshot } from '../hooks/mutations';
-
-const ACCEPTED = ['image/png', 'image/jpeg', 'image/jpg'];
+import { normalizeImageContentType } from '../api/client';
 
 export default function UploadPage() {
   const { goHome, showResult, showError } = useUiStore();
@@ -17,7 +16,7 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validate = (f: File): string | null => {
-    if (!ACCEPTED.includes(f.type)) {
+    if (!normalizeImageContentType(f.type)) {
       return 'Please upload a PNG or JPG image.';
     }
     if (f.size > 10 * 1024 * 1024) {
@@ -58,6 +57,10 @@ export default function UploadPage() {
         near_duplicates: result.near_duplicates,
         alert_triggered: result.alert_triggered,
         created_at: result.created_at,
+        truncated: result.truncated,
+        classifier_kind: result.classifier_kind,
+        similarity_score: result.similarity_score,
+        matched_scam_id: result.matched_scam_id,
       });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Could not process the screenshot.');

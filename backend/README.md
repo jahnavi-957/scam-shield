@@ -10,8 +10,11 @@ inside a private VPC.
 ## Quickstart (local development)
 
 ```sh
-# from the repo root — Postgres (pgvector) + backend + frontend
-docker compose up -d db backend
+# from the repo root — create the shared local config once
+cp .env.example .env
+
+# Postgres (pgvector) + MinIO + backend + frontend
+docker compose up -d --build
 
 # migrations are applied automatically by the backend container
 # (alembic upgrade head runs before uvicorn starts)
@@ -24,8 +27,14 @@ pytest tests/ -v -m integration       # needs the compose Postgres
 ```
 
 The compose Postgres is exposed on `127.0.0.1:5433` for
-host-side tooling. `backend/.env` (copy from `.env.example`)
-holds the local, non-secret defaults.
+host-side tooling. Copy the repository-root `.env.example` to `.env` so
+Compose, the frontend and backend share one local configuration; do not create
+a second backend-only environment file.
+
+Local screenshot uploads use MinIO at `http://localhost:9000`.
+`S3_PUBLIC_ENDPOINT_URL` is deliberately different from the backend's
+internal `S3_ENDPOINT_URL` so presigned URLs generated inside Compose are
+reachable by the host browser.
 
 ## API
 
@@ -34,7 +43,7 @@ holds the local, non-secret defaults.
 | `POST /analyze/text` | Analyse raw text; returns verdict + entity report counts |
 | `POST /analyze/screenshot` | OCR an S3-uploaded screenshot, then analyse |
 | `GET /uploads/presigned-url` | Presigned S3 PUT URL for direct frontend upload |
-| `GET /entities/{value}` | Report history for a UPI ID / phone / URL ("search before you pay") |
+| `GET /entities?value=...` | Report history for a UPI ID / phone / URL ("search before you pay") |
 | `GET /health` | Liveness + DB connectivity (for monitoring) |
 
 `POST /analyze/text` flow: persist message → run the AI
@@ -51,7 +60,7 @@ and `alert_triggered`.
 
 | | Local | EC2 |
 |---|---|---|
-| Secrets (DB URL, S3 bucket, SNS ARN) | `backend/.env` | **SSM Parameter Store** |
+| Secrets (DB URL, S3 bucket, SNS ARN) | repository-root `.env` (local only) | **SSM Parameter Store** |
 | DB | compose Postgres on `localhost:5433` | RDS in a private subnet |
 | Model weights | mounted `ml/model/` | pulled from S3 at startup |
 | OCR | Tesseract (in the image) | Tesseract (in the image); `OCR_ENGINE=textract` to upgrade |
@@ -74,7 +83,7 @@ and CloudTrail auditing come for free.
 - **Presigned upload URLs** — the frontend uploads
   screenshots *directly to S3*: image bytes never route
   through the small EC2 instance (saves memory and
-  bandwidth), and the URL is a time-limited (15 min)
+  bandwidth), and the URL is a time-limited (5 min)
   capability for exactly one object, one verb, one content
   type. The backend only ever handles the S3 key.
 - **pgvector for embeddings** — cosine similarity against
@@ -108,7 +117,7 @@ and CloudTrail auditing come for free.
   download fails, the ml package's rule-based classifier
   serves requests (degraded, not down).
 - **SNS/S3 failures never block a verdict** — an SNS
-  publish failure is logged (with the entity and count)
+  publish failure is logged with a redacted correlation context and count
   and the analysis still returns; the alert cooldown is
   set regardless, preventing an alert-retry storm.
 - **Single gunicorn worker** — each worker loads the ML
@@ -120,12 +129,12 @@ and CloudTrail auditing come for free.
   `AIPipelineError`; the client gets a clean 500, the
   real error is logged server-side with a stack trace.
 
-## S3 lifecycle (Terraform's job — documented, not implemented)
+## S3 lifecycle (production infrastructure)
 
-Screenshots under the `uploads/` prefix are only needed
-until OCR completes. The `infra/` module should add a
-lifecycle rule: transition to `STANDARD_IA` after 30 days,
-expire after 90 days.
+Screenshots under the `uploads/` prefix are deleted after the OCR attempt by
+the application. Production infrastructure must also add a private-bucket
+lifecycle rule that expires abandoned objects after 24 hours. Terraform is not
+implemented in this repository yet; see `SECURITY.md` for the current gap.
 
 ## Deployment sketch (EC2)
 

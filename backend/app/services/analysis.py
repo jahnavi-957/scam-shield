@@ -25,7 +25,8 @@ from sqlalchemy.orm import Session
 
 from app import ai
 from app.db import repository
-from app.services import alerts, ocr
+from app.services import alerts, ocr, privacy
+from app.services.entities import normalize_entity_value
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,15 @@ SIMILARITY_MAX_DISTANCE = 0.15
 
 def analyze_text(db: Session, config, text: str) -> dict:
     """Analyse a raw text message and persist everything."""
-    now = datetime.now(timezone.utc)
-    message = repository.save_message(db, raw_text=text, source="text")
-
+    # The model must see the original submission.  The persisted copy is
+    # redacted only after classification has completed.
     verdict = ai.analyze(text)  # may raise AIPipelineError -> generic 500
+    now = datetime.now(timezone.utc)
+    message = repository.save_message(
+        db,
+        raw_text=privacy.redact_sensitive_text(text),
+        source="text",
+    )
 
     analysis = repository.save_analysis(
         db,
@@ -54,16 +60,11 @@ def analyze_text(db: Session, config, text: str) -> dict:
         scam_type=verdict["scam_type"],
         confidence=verdict["confidence"],
         is_scam=verdict["is_scam"],
-        explanation=verdict["explanation"],
+        explanation=privacy.redact_sensitive_text(verdict["explanation"]),
         embedding=verdict["embedding"],
     )
 
-    similar = repository.find_similar_analyses(
-        db,
-        embedding=verdict["embedding"],
-        max_distance=SIMILARITY_MAX_DISTANCE,
-        exclude_message_id=message.id,
-    )
+    similar = _find_near_duplicates(db, verdict, message.id)
 
     entities, prior_reports, alert_triggered = _track_entities(
         db, config, message.id, verdict["entities"], now
@@ -81,20 +82,39 @@ def analyze_text(db: Session, config, text: str) -> dict:
         "near_duplicates": [hit["message_id"] for hit in similar],
         "alert_triggered": alert_triggered,
         "created_at": analysis.created_at,
+        "truncated": verdict.get("truncated", False),
+        "classifier_kind": verdict.get("classifier_kind", ""),
+        "similarity_score": verdict.get("similarity_score"),
+        "matched_scam_id": verdict.get("matched_scam_id"),
     }
 
 
 def analyze_screenshot(db: Session, config, s3_key: str) -> dict:
     """OCR an already-uploaded screenshot, then run the same
     pipeline as analyse_text."""
-    text = ocr.extract_text_from_image(s3_key)
+    try:
+        text = ocr.extract_text_from_image(s3_key)
+    finally:
+        # Screenshots are temporary ingestion material. Delete them after the
+        # OCR attempt so a successful or failed request does not retain a
+        # PII-rich image indefinitely. The bucket lifecycle policy remains a
+        # secondary control for crashes and abandoned uploads.
+        try:
+            from app.services import storage
+
+            storage.delete_object(s3_key)
+        except Exception:
+            logger.warning("processed screenshot cleanup failed", exc_info=True)
     if not text.strip():
         raise ValueError("screenshot contains no readable text")
 
     now = datetime.now(timezone.utc)
-    message = repository.save_message(db, raw_text=text, source="screenshot")
-
     verdict = ai.analyze(text)
+    message = repository.save_message(
+        db,
+        raw_text=privacy.redact_sensitive_text(text),
+        source="screenshot",
+    )
 
     analysis = repository.save_analysis(
         db,
@@ -102,16 +122,11 @@ def analyze_screenshot(db: Session, config, s3_key: str) -> dict:
         scam_type=verdict["scam_type"],
         confidence=verdict["confidence"],
         is_scam=verdict["is_scam"],
-        explanation=verdict["explanation"],
+        explanation=privacy.redact_sensitive_text(verdict["explanation"]),
         embedding=verdict["embedding"],
     )
 
-    similar = repository.find_similar_analyses(
-        db,
-        embedding=verdict["embedding"],
-        max_distance=SIMILARITY_MAX_DISTANCE,
-        exclude_message_id=message.id,
-    )
+    similar = _find_near_duplicates(db, verdict, message.id)
 
     entities, prior_reports, alert_triggered = _track_entities(
         db, config, message.id, verdict["entities"], now
@@ -129,7 +144,23 @@ def analyze_screenshot(db: Session, config, s3_key: str) -> dict:
         "near_duplicates": [hit["message_id"] for hit in similar],
         "alert_triggered": alert_triggered,
         "created_at": analysis.created_at,
+        "truncated": verdict.get("truncated", False),
+        "classifier_kind": verdict.get("classifier_kind", ""),
+        "similarity_score": verdict.get("similarity_score"),
+        "matched_scam_id": verdict.get("matched_scam_id"),
     }
+
+
+def _find_near_duplicates(db: Session, verdict: dict, message_id: int) -> list[dict]:
+    """Find prior scam reports only; legitimate traffic is not a match set."""
+    if not verdict["is_scam"]:
+        return []
+    return repository.find_similar_analyses(
+        db,
+        embedding=verdict["embedding"],
+        max_distance=SIMILARITY_MAX_DISTANCE,
+        exclude_message_id=message_id,
+    )
 
 
 def _track_entities(
@@ -151,8 +182,9 @@ def _track_entities(
 
     for field, entity_type in ENTITY_FIELDS:
         for raw_value in entities_found.get(field, []):
-            value = str(raw_value).strip().lower()
-            if not value:
+            try:
+                value = normalize_entity_value(entity_type, str(raw_value))
+            except ValueError:
                 continue
 
             entity = repository.find_or_create_entity(db, entity_type=entity_type, value=value)
@@ -182,8 +214,7 @@ def _track_entities(
                     alerts.publish_alert(value, entity_type, total_in_window)
                 except Exception:
                     logger.error(
-                        "SNS publish failed for entity %s",
-                        value,
+                        "SNS publish failed",
                         extra={"entity_type": entity_type, "report_count": total_in_window},
                         exc_info=True,
                     )

@@ -41,10 +41,12 @@ def test_analyze_text_returns_verdict_and_persists(
     assert entity["value"] == "fraud123@okaxis"
     assert entity["report_count"] == 1
 
-    # Persisted: the message row exists with the raw text.
+    # Persisted: the message row exists with a privacy-redacted copy while
+    # the mocked AI received the original text.
     message = db_session.get(Message, body["message_id"])
     assert message is not None
-    assert message.raw_text == SCAM_TEXT
+    assert "fraud123@okaxis" not in message.raw_text
+    assert "Congratulations" in message.raw_text
 
 
 def test_analyze_text_multiple_entities(
@@ -139,9 +141,17 @@ def test_entity_history_unknown_entity_returns_404(client: TestClient):
     assert response.status_code == 404
 
 
-def test_presigned_url_requires_configured_bucket(client: TestClient):
-    """Without an S3 bucket (local dev default), the endpoint
-    explains that storage is not configured."""
+def test_presigned_url_requires_configured_bucket(client: TestClient, monkeypatch):
+    """Without an S3 bucket, the endpoint explains that storage is not configured."""
+    from app.core.config import Settings
+    base = client.app.state.config
+    dummy_config = Settings(
+        database_url=base.database_url,
+        environment="local",
+        s3_bucket="",
+        cors_origins="http://localhost:5173",
+    )
+    monkeypatch.setattr(client.app.state, "config", dummy_config)
     response = client.get("/uploads/presigned-url")
     assert response.status_code == 503
 

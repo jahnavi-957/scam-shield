@@ -131,6 +131,27 @@ export default function ResultPage() {
               </span>
             </div>
           </div>
+
+          {analysis.near_duplicates.length > 0 && (
+            <div className="mt-7 border-t border-line pt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">
+                Similar reports
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                This message is similar to reports already in Scam Shield.
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {analysis.near_duplicates.map((messageId, index) => (
+                  <li
+                    key={`${messageId}-${index}`}
+                    className="rounded-lg border border-line bg-bg-soft px-4 py-3 text-sm text-ink"
+                  >
+                    Report <span className="font-semibold">#{messageId}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex justify-center">

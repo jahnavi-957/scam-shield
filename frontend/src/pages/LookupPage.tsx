@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUiStore } from '../store';
 import { useEntityHistory } from '../hooks/mutations';
+import { ApiError } from '../api/client';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
@@ -16,6 +17,13 @@ export default function LookupPage() {
 
   const query = useEntityHistory(value, view.kind === 'entity');
   const isSearching = view.kind === 'entity' && query.isPending;
+  const isNotFound = query.error instanceof ApiError && query.error.status === 404;
+
+  const errorDescription = isNotFound
+    ? 'No reports are recorded for this entity yet.'
+    : query.error instanceof ApiError
+      ? 'The lookup service returned an error. Please try again in a moment.'
+      : 'We could not reach the lookup service. Check your connection and try again.';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,9 +76,9 @@ export default function LookupPage() {
 
           {value && !isSearching && query.isError && (
             <EmptyState
-              icon={<ShieldCheck className="h-6 w-6" />}
-              title="No reports found"
-              description={query.error.message}
+              icon={isNotFound ? <ShieldCheck className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+              title={isNotFound ? 'No reports found' : 'Lookup unavailable'}
+              description={errorDescription}
             />
           )}
 
