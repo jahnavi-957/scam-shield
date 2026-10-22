@@ -1,0 +1,62 @@
+/* Scam Shield design tokens — single source of truth.
+   These CSS variables are consumed by Tailwind via the theme config,
+   so every component reads from the same restrained palette. */
+
+:root {
+  /* ---- Neutral base (warm-tint off-white / near-black) ---- */
+  --color-bg: #fbfaf7;          /* page background */
+  --color-bg-elevated: #ffffff; /* card / panel surface */
+  --color-bg-soft: #f4f2ec;     /* subtle section fill */
+  --color-bg-hover: #f0ede5;    /* hover fill */
+  --color-ink: #1c1b19;         /* primary text */
+  --color-ink-soft: #4a4741;    /* secondary text */
+  --color-ink-faint: #8a857b;  /* tertiary / meta text */
+  --color-line: #e6e3da;        /* hairline divider */
+  --color-line-soft: #f0ede5;   /* very subtle divider */
+
+  /* ---- Accent (deep indigo, used sparingly) ---- */
+  --color-accent: #3b3f8c;      /* accent primary */
+  --color-accent-soft: #eef0fb; /* accent tint */
+  --color-accent-ink: #2a2e6e; /* accent on light */
+
+  /* ---- Status: danger (calm red) ---- */
+  --color-danger: #b3402f;      /* calm, brick-like red */
+  --color-danger-soft: #f7eae6; /* danger tint */
+  --color-danger-ink: #7c2a1d;
+
+  /* ---- Status: safe (calm green) ---- */
+  --color-safe: #2f7d5a;        /* muted forest green */
+  --color-safe-soft: #e8f1ec;   /* safe tint */
+  --color-safe-ink: #1f5439;
+
+  /* ---- Status: neutral / unknown ---- */
+  --color-neutral: #6b675e;
+  --color-neutral-soft: #eceae3;
+
+  /* ---- Radius scale ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  /* ---- Spacing is handled by Tailwind; shadows below ---- */
+  --shadow-sm: 0 1px 2px rgba(28, 27, 25, 0.04);
+  --shadow-md: 0 4px 12px rgba(28, 27, 25, 0.06);
+  --shadow-lg: 0 12px 32px rgba(28, 27, 25, 0.08);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration: 180ms;
+  --duration-slow: 260ms;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration: 0ms;
+    --duration-slow: 0ms;
+  }
+}

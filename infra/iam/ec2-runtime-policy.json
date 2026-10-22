@@ -1,0 +1,69 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadRuntimeParameters",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters"
+      ],
+      "Resource": "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/scam-shield/prod/*"
+    },
+    {
+      "Sid": "UseScreenshotObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::<UPLOAD_BUCKET>/uploads/*"
+    },
+    {
+      "Sid": "ListScreenshotPrefix",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::<UPLOAD_BUCKET>",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "uploads/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ReadPinnedModelArtifacts",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::<MODEL_BUCKET>/scam-shield/model/<MODEL_VERSION>/*"
+    },
+    {
+      "Sid": "ListPinnedModelPrefix",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::<MODEL_BUCKET>",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "scam-shield/model/<MODEL_VERSION>/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "PublishOnlyToScamAlertTopic",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "arn:aws:sns:<REGION>:<ACCOUNT_ID>:<ALERT_TOPIC>"
+    }
+  ]
+}

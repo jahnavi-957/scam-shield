@@ -1,22 +1,25 @@
 name: scamshield
 
-# Local development stack for M1. Mirrors the production topology
-# (Postgres + FastAPI + React in containers) so later milestones deploy
-# the same artifacts to EC2.
+# Local development stack for M1/M2. Mirrors the production
+# topology (Postgres + FastAPI + React in containers) so the
+# same artifacts deploy to EC2 later.
 #
-# `db` is intentionally not reachable from outside the compose network on
-# port 5432; we expose it on 127.0.0.1:5433 only for host-side tooling
-# (psql, Alembic from the host, etc.).
+# `db` is intentionally not reachable from outside the compose
+# network on port 5432; we expose it on 127.0.0.1:5433 only
+# for host-side tooling (psql, pytest, Alembic from the host).
 
 services:
   db:
+    # pgvector image: the analysis schema stores embeddings
+    # as a `vector` column (extension enabled by Alembic
+    # migration 0001), so local dev matches RDS exactly.
     image: pgvector/pgvector:pg16
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: scamshield
-      # Dev-only default for localhost. Never reused on AWS — real credentials
-      # are injected from SSM at deployment time (M4).
-      POSTGRES_PASSWORD: scamshield_dev
-      POSTGRES_DB: scamshield
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env first}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -27,19 +30,49 @@ services:
       timeout: 5s
       retries: 10
 
+  # Lightweight S3-compatible mock service for local dev: presigned URLs,
+  # screenshot uploads and OCR all work against this service exactly
+  # as they would against real S3 in production.
+  s3mock:
+    build:
+      context: ./infra/s3mock
+    ports:
+      - "127.0.0.1:4566:4566"
+    volumes:
+      - s3_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4566/health').status==200 else 1)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
-    build: ./backend
+    # Build context is the repo root: the image needs both
+    # backend/ (the API) and ml/scamshield_ml (the AI module).
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # Dev mode: live-reload instead of gunicorn.
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    env_file:
+      - .env
     environment:
-      # Service name `db` resolves inside the compose network.
-      DATABASE_URL: postgresql+psycopg://scamshield:scamshield_dev@db:5432/scamshield
-      CORS_ORIGINS: http://localhost:5173
+      # In dev the host's trained model is mounted below; the
+      # classifier picks it up through SCAM_MODEL_DIR.
+      SCAM_MODEL_DIR: /var/lib/scamshield/model
     volumes:
       - ./backend:/app
+      # AI module importable via PYTHONPATH (/opt/ml).
+      - ./ml:/opt/ml:ro
+      # Host's fine-tuned weights, so dev classifies with the
+      # real DistilBERT model instead of the rule fallback.
+      - ./ml/model:/var/lib/scamshield/model:ro
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      s3mock:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
@@ -49,10 +82,12 @@ services:
 
   frontend:
     build: ./frontend
+    env_file:
+      - .env
     volumes:
       - ./frontend:/app
-      # Named volume keeps container-installed node_modules alive across the
-      # host bind mount (the Windows host has no node_modules to share).
+      # Named volume keeps container-installed node_modules alive across
+      # the host bind mount (the Windows host has no node_modules to share).
       - frontend_node_modules:/app/node_modules
     ports:
       - "5173:5173"
@@ -61,4 +96,5 @@ services:
 
 volumes:
   pgdata:
+  s3_data:
   frontend_node_modules:

@@ -1,0 +1,14 @@
+# Generated / large artifacts
+dataset/train.jsonl
+dataset/val.jsonl
+dataset/test.jsonl
+dataset/stats.json
+dataset/uci_sms_spam.csv
+model/
+runs/
+evaluation.md
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

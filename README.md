@@ -2,8 +2,8 @@
 
 AI-powered fraud detection platform for SMS, UPI, WhatsApp, and phishing scams built around a shared **scam intelligence graph**.
 
-> **Current Status: Milestone M1 (Local Skeleton) Verified.**  
-> A complete local development environment runs via Docker Compose: FastAPI backend, React frontend, and PostgreSQL with pgvector, with database migrations applied and verified test suite passing. No AWS resources created yet.
+> **Current Status: integrated local stack configuration and security hardening implemented; AWS deployment remains deferred.**
+> The `ml/` package provides the DistilBERT/MiniLM pipeline, and the FastAPI backend exposes text and screenshot (OCR) analysis, pgvector matching, entity tracking, presigned uploads, and SSM-backed production configuration. The local Compose stack uses Postgres/pgvector, MinIO and a mock SNS publisher. Docker/AWS end-to-end execution still requires a Docker-enabled environment.
 
 ---
 
@@ -54,11 +54,11 @@ Scam Shield solves this by creating a centralized, real-time **scam intelligence
 
 ```
 scam-shield/
-├── backend/          FastAPI application (api, core config, db, schemas) + Alembic migrations
+├── backend/          FastAPI analysis API (SSM, S3, SNS, OCR, pgvector) + Alembic migrations
 ├── frontend/         React + Vite + TypeScript single-page app
 ├── scamshield_core/  Shared analysis pipeline (populated in M2)
 ├── worker/           Async screenshot worker (populated in M6)
-├── ml/               Dataset, training, evaluation (populated in M2)
+├── ml/               Trained models (DistilBERT + MiniLM) and the scamshield_ml package
 ├── infra/            Terraform for AWS (populated in M3)
 ├── docs/             Requirements, architecture, threat model, cost, ADRs, status
 ├── scripts/          Developer helper scripts
@@ -69,28 +69,88 @@ Only files needed for the active milestone are populated, keeping the repository
 
 ---
 
-## Local Development Quick Start
+## Run the whole app locally
 
 ### Prerequisites
 - Docker Desktop (with WSL2 backend on Windows) **running**
 - Git
 
-Containers manage Python and Node dependencies internally, so local runtimes are not required.
+Containers manage Python, Node, Postgres and MinIO dependencies internally, so
+local runtimes are not required.
 
-### 1. Start the Local Stack
+### 1. Create the one local configuration file
+
+From the repository root:
+
+```sh
+cp .env.example .env
+```
+
+PowerShell equivalent:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env` is local-only and ignored by Git. It is the single source of truth for
+the Compose database, API origin, MinIO endpoint/bucket and local SNS mock.
+Do not use these development credentials or HTTP endpoints in AWS.
+
+### 2. Start the complete stack
 ```sh
 docker compose up -d --build
 ```
 
-### 2. Service Endpoints
+This starts Postgres + pgvector, MinIO, the bucket initializer, FastAPI and
+the Vite frontend. The backend applies Alembic migrations before serving.
+
+### 3. Service Endpoints
 
 | Service | URL | Notes |
 |---|---|---|
 | **Frontend UI** | [http://localhost:5173](http://localhost:5173) | Vite + React application |
 | **Backend Health** | [http://localhost:8000/health](http://localhost:8000/health) | Verifies app & database connectivity |
 | **Interactive API Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI for backend endpoints |
+| **MinIO console** | [http://localhost:9001](http://localhost:9001) | Local-only object-store inspection |
 
-### 3. Developer Commands
+### 4. Exact local demo flow
+
+1. Open the frontend and paste a scam message such as:
+
+   ```text
+   Congratulations! You won a prize. Pay Rs. 500 to fraud123@okaxis now.
+   ```
+
+2. Confirm the result shows the scam verdict and extracted UPI entity.
+3. Submit a reworded variant:
+
+   ```text
+   Urgent prize winner notice: send Rs. 500 to fraud123@okaxis to receive your reward.
+   ```
+
+   The result's **Similar reports** section should show the prior scam report
+   when the local pgvector similarity threshold is met.
+4. Repeat the same entity report until the fifth report. `.env` enables the
+   local SNS mock; the fifth report sets `alert_triggered=true`, and the
+   backend test verifies that `alerts.publish_alert()` was called.
+5. Select **Screenshot**, choose a real PNG/JPEG containing the scam text, and
+   wait for the direct upload → MinIO → backend fetch → Pillow validation →
+   Tesseract OCR → AI pipeline → verdict flow to complete.
+
+The local stand-ins are:
+
+| Production service | Local stand-in | What is actually tested |
+|---|---|---|
+| RDS PostgreSQL + pgvector | `pgvector/pgvector:pg16` | SQL schema, persistence, vector similarity |
+| Private S3 | MinIO | Presigned PUT, object fetch, image validation, cleanup |
+| SNS | In-process mock enabled by `SNS_MOCK_ENABLED=true` | Threshold decision and publish call |
+| SSM Parameter Store | `.env` | Configuration shape only; AWS IAM/SSM is not exercised |
+| Textract | Tesseract in the backend image | Local OCR only; Textract behavior is not exercised |
+
+Real AWS S3, SNS, SSM, RDS networking, IAM, HTTPS/ALB and VPC controls only
+work after production infrastructure is provisioned and configured.
+
+### 5. Developer Commands
 
 ```sh
 # Run database migrations (also executes on container startup)
@@ -107,6 +167,12 @@ docker compose down
 
 # Stop containers and reset database volume
 docker compose down -v
+```
+
+To inspect the local MinIO bucket:
+
+```sh
+docker compose exec minio-init sh -c 'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" && mc ls local/scamshield-local'
 ```
 
 ---
@@ -126,6 +192,6 @@ Detailed project specifications and decision records are maintained in [`docs/`]
 
 ## Security & Secrets Management
 
-- **Zero credential leaks:** No `.env` or credential files are ever committed. See `backend/.env.example` for required local variables.
+- **Zero credential leaks:** No `.env` or credential files are ever committed. See [`.env.example`](./.env.example) for the canonical local variables.
 - The Compose stack uses a local development-only password for localhost testing.
-- Cloud deployment will use AWS SSM Parameter Store / Secrets Manager and IAM least-privilege roles starting in M4.
+- Cloud deployment will use AWS SSM Parameter Store and IAM least-privilege roles; see [`SECURITY.md`](./SECURITY.md) and [`infra/iam/ec2-runtime-policy.json`](./infra/iam/ec2-runtime-policy.json).

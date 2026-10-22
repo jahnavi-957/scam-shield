@@ -1,0 +1,72 @@
+{"id": "hw_phishing_001", "text": "URGENT: Your SBI account will be suspended. Verify KYC immediately at sbi-secure-kyc.com else account blocked permanently.", "label": "phishing"}
+{"id": "hw_phishing_002", "text": "Your ATM card has been blocked. Update Aadhaar now: bit.ly/update-aadhaar-sbi", "label": "phishing"}
+{"id": "hw_phishing_003", "text": "Dear customer, unusual login detected on your Paytm wallet. Confirm your credentials: https://paytm-verify.xyz/login", "label": "phishing"}
+{"id": "hw_phishing_004", "text": "SIM will be deactivated today due to Aadhaar mismatch. Tap tinyurl.com/sim-akt-verify to re-activate", "label": "phishing"}
+{"id": "hw_phishing_005", "text": "Your PF account needs verification. Login to pfportal-epfo.in with UAN and password to avoid deduction.", "label": "phishing"}
+{"id": "hw_phishing_006", "text": "IRCTC alert: Your ticket booking failed, refund pending. Claim refund at irctc-refunds.co.in", "label": "phishing"}
+{"id": "hw_phishing_007", "text": "Bank notice: Update your mobile number via https://hdfc-bank-update.com within 24 hours or services stopped.", "label": "phishing"}
+{"id": "hw_phishing_008", "text": "Suspicious activity on your Google Pay account. Verify now: cutt.ly/gpay-secure-check", "label": "phishing"}
+{"id": "hw_phishing_009", "text": "Your electricity bill is overdue. Pay instantly to avoid disconnection: tnbillpay-mirror.in", "label": "phishing"}
+{"id": "hw_phishing_010", "text": "Aadhaar authentication failed. Update biometrics at uidai-verify.in before your card is locked.", "label": "phishing"}
+{"id": "hw_phishing_011", "text": "Dear customer your KYC is pending. Click https://axis-bank-kyc.net to update PAN immediately.", "label": "phishing"}
+{"id": "hw_phishing_012", "text": "Password expiry alert: change your netbanking password at onlinesbi-secure.net within 12 hours.", "label": "phishing"}
+{"id": "hw_fake_prize_001", "text": "Congratulations! You have won Rs. 50,000 in the Diwali Lucky Draw. Pay Rs. 500 processing fee to fraud123@okaxis to claim.", "label": "fake_prize"}
+{"id": "hw_fake_prize_002", "text": "You've been selected for iPhone 15 lucky draw! Send Rs. 999 to 9876543210 to claim your prize.", "label": "fake_prize"}
+{"id": "hw_fake_prize_003", "text": "KBC lucky winner! Claim Rs. 25,00,000 now. Pay Rs. 1000 charge to 8888123456 or visit tinyurl.com/kbc-claim", "label": "fake_prize"}
+{"id": "hw_fake_prize_004", "text": "Congrats! Your mobile number won Rs. 1,00,000 lottery. Pay Rs 250 as stamp duty to winbig@paytm.", "label": "fake_prize"}
+{"id": "hw_fake_prize_005", "text": "You are today's lucky winner! Get free Rs. 10,000 Paytm cash. Send Rs. 99 to claim: bit.ly/free-cash-claim", "label": "fake_prize"}
+{"id": "hw_fake_prize_006", "text": "Prize alert! You won a Tata Nexon car. Pay Rs. 2,000 registration fee at car-prize-claim.in", "label": "fake_prize"}
+{"id": "hw_fake_prize_007", "text": "Congratulations you won 1 lakh cash. Pay processing fee Rs 500 to 9999012345. Limited time!", "label": "fake_prize"}
+{"id": "hw_fake_prize_008", "text": "Lucky draw winner: claim Rs. 75,000 Amazon gift voucher. Rs. 199 fee: tinyurl.com/amazon-gift-claim", "label": "fake_prize"}
+{"id": "hw_fake_prize_009", "text": "You have won Rs. 5,000 in our anniversary offer. Send processing fee of Rs. 49 to prizeclaim@ybl", "label": "fake_prize"}
+{"id": "hw_fake_prize_010", "text": "Winner notification: Rs. 2,00,000 jackpot! Pay Rs. 1500 tax upfront to claim via UPI: jackpot@axl", "label": "fake_prize"}
+{"id": "hw_fake_prize_011", "text": "Congrats! Free Jio 5G phone won. Pay Rs. 299 delivery charge at jio-phone-offer.in", "label": "fake_prize"}
+{"id": "hw_fake_prize_012", "text": "You've won Rs. 30,000 cashback! Pay Rs. 100 to activate: bit.ly/cashback-activate-now", "label": "fake_prize"}
+{"id": "hw_loan_scam_001", "text": "Instant loan approved! Get Rs. 5,00,000 instantly. Pay 2% processing fee to loanapp@okaxis. No CIBIL check.", "label": "loan_scam"}
+{"id": "hw_loan_scam_002", "text": "Urgent loan? Approved in 5 minutes. Send Rs. 500 verification fee to 9812345678. Low interest 1% per month.", "label": "loan_scam"}
+{"id": "hw_loan_scam_003", "text": "Loan sanctioned Rs. 2,00,000. Pay Rs. 1,000 upfront charges via UPI: quickloan@paytm. WhatsApp 8888765432.", "label": "loan_scam"}
+{"id": "hw_loan_scam_004", "text": "Bad credit OK! Personal loan up to Rs. 10 lakh. Registration fee Rs. 750 at instant-loan-app.in", "label": "loan_scam"}
+{"id": "hw_loan_scam_005", "text": "Your loan application approved! Pay processing fee Rs 300 to disburse amount: tinyurl.com/loan-disbursal", "label": "loan_scam"}
+{"id": "hw_loan_scam_006", "text": "Emergency loan Rs. 25,000 in 10 mins. Only Rs. 199 fee. UPI: fastcash@ybl or call 9999123456.", "label": "loan_scam"}
+{"id": "hw_loan_scam_007", "text": "Get business loan Rs. 50,000 at 0.5% interest. KYC fee Rs. 400 required first. Pay to businessloan@axl", "label": "loan_scam"}
+{"id": "hw_loan_scam_008", "text": "Loan offer: Rs. 1,00,000 sanctioned. Complete verification by paying Rs. 600 at loanverify-mirror.com", "label": "loan_scam"}
+{"id": "hw_loan_scam_009", "text": "No collateral loan approved. Pay Rs. 250 processing fee to 919876543210 to receive funds.", "label": "loan_scam"}
+{"id": "hw_loan_scam_010", "text": "Pre-approved loan of Rs. 3,00,000. Minimal documentation. Fee Rs. 800 via UPI: loan@okicici", "label": "loan_scam"}
+{"id": "hw_loan_scam_011", "text": "Need money? Instant approval. Pay small fee Rs 150 to activate: bit.ly/instant-loan-now", "label": "loan_scam"}
+{"id": "hw_loan_scam_012", "text": "Home loan at 6.5% approved! Pay Rs. 1,500 processing fee to secure your loan: housingloan-app.in", "label": "loan_scam"}
+{"id": "hw_impersonation_001", "text": "Mummy, I need Rs. 20,000 urgently. My phone is charging, send money to this number 9876543210. - Rahul", "label": "impersonation"}
+{"id": "hw_impersonation_002", "text": "This is your bank manager. Your account is under CBI investigation. Transfer Rs. 50,000 to safe account 9999000111 immediately.", "label": "impersonation"}
+{"id": "hw_impersonation_003", "text": "Boss, I am in a meeting, send Rs. 15,000 to client UPI ravi.vendor@okaxis urgently. Will return files later.", "label": "impersonation"}
+{"id": "hw_impersonation_004", "text": "Police alert: Your Aadhaar linked to a crime case. Pay Rs. 30,000 fine to avoid arrest: fine.payment@ybl", "label": "impersonation"}
+{"id": "hw_impersonation_005", "text": "Hello, this is Dr. Sharma from Apollo hospital. Your son met with accident, send Rs. 1,00,000 for surgery to 9810012345.", "label": "impersonation"}
+{"id": "hw_impersonation_006", "text": "Sir, I am your nephew Vikram. Need Rs. 5,000 for college fees. New number, pay to Vikram@paytm.", "label": "impersonation"}
+{"id": "hw_impersonation_007", "text": "Income tax notice: Pay Rs. 12,500 outstanding tax within 24 hours to avoid arrest. UPI: itdept@okaxis", "label": "impersonation"}
+{"id": "hw_impersonation_008", "text": "Dear customer, this is bank fraud team. Your money is at risk. Move funds to secure account 8888999900 now.", "label": "impersonation"}
+{"id": "hw_impersonation_009", "text": "I am your LIC agent. Policy matures today, pay Rs. 750 service charge to lic.agent@ybl to claim Rs. 5 lakh.", "label": "impersonation"}
+{"id": "hw_impersonation_010", "text": "Hello papa, new number. Emergency, need Rs. 8,000. Send to this UPI: sonu@axl. Don't tell mummy.", "label": "impersonation"}
+{"id": "hw_impersonation_011", "text": "Your electricity board officer here. Pay Rs. 3,200 pending bill to avoid disconnection tonight: eb.bill@okhdfcbank", "label": "impersonation"}
+{"id": "hw_impersonation_012", "text": "This is your bank's cyber cell. Verify OTP immediately or account will be frozen. Send OTP now.", "label": "impersonation"}
+{"id": "hw_investment_001", "text": "Double your money in 30 days! Invest Rs. 10,000 get Rs. 20,000 guaranteed. Join trading group: bit.ly/trade-profit-in", "label": "investment_fraud"}
+{"id": "hw_investment_002", "text": "Bitcoin investment plan: 10% daily returns. Deposit Rs. 5,000 to crypto.trade@ybl to start earning.", "label": "investment_fraud"}
+{"id": "hw_investment_003", "text": "Work from home, earn Rs. 50,000/month. Pay Rs. 999 registration at online-jobs-in.com. Guaranteed income.", "label": "investment_fraud"}
+{"id": "hw_investment_004", "text": "Share market tips 100% accurate. Subscription Rs. 2,000. Send to marketguru@okaxis for daily intraday calls.", "label": "investment_fraud"}
+{"id": "hw_investment_005", "text": "Crypto trading bot profits Rs. 1 lakh/month. Invest now: tinyurl.com/crypto-profit-bot. Limited seats.", "label": "investment_fraud"}
+{"id": "hw_investment_006", "text": "Multilevel earning: invest Rs. 1,500, earn Rs. 5,000 daily. Join WhatsApp group 8888112233 for details.", "label": "investment_fraud"}
+{"id": "hw_investment_007", "text": "Fixed deposit scheme 24% annual return. Deposit Rs. 25,000 to highyield@paytm. Risk free guaranteed.", "label": "investment_fraud"}
+{"id": "hw_investment_008", "text": "Forex trading with 90% accuracy. Rs. 10,000 investment gives Rs. 30,000 in 15 days. Register: forex-earn.in", "label": "investment_fraud"}
+{"id": "hw_investment_009", "text": "Invest Rs. 2,000 in our agri project, get Rs. 4,000 in 20 days. UPI: agriinvest@axl. Government approved scheme.", "label": "investment_fraud"}
+{"id": "hw_investment_010", "text": "Earn Rs. 10,000 daily by watching ads. Startup fee Rs. 500 at ad-earn-money.com", "label": "investment_fraud"}
+{"id": "hw_investment_011", "text": "NFT investment plan: 5x returns guaranteed. Send Rs. 15,000 to nft.wealth@ybl to join.", "label": "investment_fraud"}
+{"id": "hw_investment_012", "text": "Trading academy: learn stock market, earn lakhs. Course fee Rs. 4,999 at marketpro-training.in", "label": "investment_fraud"}
+{"id": "hw_not_scam_001", "text": "Meeting postponed to 4 PM tomorrow. Please join the usual Google Meet link.", "label": "not_scam"}
+{"id": "hw_not_scam_002", "text": "Your OTP for SBI netbanking is 452318. Do not share with anyone.", "label": "not_scam"}
+{"id": "hw_not_scam_003", "text": "Dinner at home tonight? I'll make chole bhature. Reach by 8.", "label": "not_scam"}
+{"id": "hw_not_scam_004", "text": "Your order #A-2045 has been shipped. Track at amazon.in/orders. Delivery by Thursday.", "label": "not_scam"}
+{"id": "hw_not_scam_005", "text": "Mom said buy milk and bread on the way home. Also call dad when free.", "label": "not_scam"}
+{"id": "hw_not_scam_006", "text": "Your monthly salary of Rs. 45,000 has been credited to your account ending 2345.", "label": "not_scam"}
+{"id": "hw_not_scam_007", "text": "Reminder: team standup at 9:30 AM in conference room B.", "label": "not_scam"}
+{"id": "hw_not_scam_008", "text": "Train 12045 Delhi-Chandigarh delayed by 20 minutes. Check irctc.co.in for updates.", "label": "not_scam"}
+{"id": "hw_not_scam_009", "text": "Happy birthday! Hope you have a great year ahead.", "label": "not_scam"}
+{"id": "hw_not_scam_010", "text": "Your electricity bill of Rs. 1,850 due 15th. Pay via official board portal only.", "label": "not_scam"}
+{"id": "hw_not_scam_011", "text": "Can you send the report by EOD? Thanks for your help.", "label": "not_scam"}
+{"id": "hw_not_scam_012", "text": "Your UPI transaction of Rs. 350 to Swiggy was successful. Ref no 4021XXXX.", "label": "not_scam"}

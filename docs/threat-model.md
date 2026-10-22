@@ -55,6 +55,8 @@ Critical rule throughout: **everything arriving from a browser is untrusted inpu
 
 ## 5. Residual risks (accepted, documented)
 
-- Local skeleton has no rate limiting yet → acceptable until M11.
+- Local API now has an in-process per-IP analysis limiter and request-size
+  enforcement. A shared edge limiter is still required before multi-worker or
+  public deployment.
 - No authentication yet → the local skeleton is single-user; auth design lands with the public milestone (M5+).
 - Legacy banking/OTP messages can be misclassified as scam until classifier evaluation (M2) tunes thresholds.
